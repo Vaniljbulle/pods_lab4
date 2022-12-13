@@ -6,14 +6,17 @@ from time import sleep
 from zero import ZeroServer
 import table
 
-tb = table.Table()
-tokens = []
+
+class global_vars:
+    tb = table.Table()
+    tokens = []
+
 
 def generate_token():
-    if tb.philosophers.__len__() != 1:
+    if global_vars.tb.philosophers.__len__() != 1:
         token = generate_id()
         # If token exists, generate a new one
-        while token in tokens:
+        while token in global_vars.tokens:
             token = generate_id()
         return token
     return None
@@ -24,7 +27,6 @@ def generate_id():
 
 
 def generate_new_philosopher(address):
-    global tokens
     token = generate_token()
     identifier = generate_id()
 
@@ -32,13 +34,11 @@ def generate_new_philosopher(address):
     print(f"Identifier: {identifier}")
 
     new_philosopher = {"identifier": identifier, "address": address}
-    tb.add_philosopher(new_philosopher)
-    next_user = tb.next_philosopher(new_philosopher)
+    global_vars.tb.add_philosopher(new_philosopher)
+    next_user = global_vars.tb.next_philosopher(new_philosopher)
 
     if token is not None:
-        tokens.append(token)
-        print("TOKEN APPENDED")
-    print(f"Tokens: {tokens}")
+        global_vars.tokens.append(token)
 
     data = {"message": "OK-SEATED",
             "identifier": identifier,
@@ -47,20 +47,20 @@ def generate_new_philosopher(address):
 
     return data
 
-
+ssss = "YOLO"
 def take_seat(msg: typing.Dict) -> typing.Dict:
+    global ssss
+    ssss = "PELLE"
     payload = generate_new_philosopher(msg["address"])
-    # append token
-    if payload["token"] is not None:
-        tokens.append(payload["token"])
     return payload
 
 
 def validate_token(tkn):
-    global tokens
+    print("YO" + ssss)
+    global_vars.tb.philosophers.print()
     print(f"1Token: {tkn}")
-    print(f"1Tokens: {tokens}")
-    if tkn in tokens:
+    print(f"1Tokens: {global_vars.tokens}")
+    if tkn in global_vars.tokens:
         return True
     else:
         return False
@@ -68,7 +68,7 @@ def validate_token(tkn):
 
 def hunger(msg: typing.Dict) -> typing.Dict:
     if validate_token(msg["token"]):
-        tb.hungry(msg["identifier"])
+        global_vars.tb.hungry(msg["identifier"])
     else:
         return {"message": "INVALID-TOKEN"}
 
