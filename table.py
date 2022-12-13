@@ -35,6 +35,14 @@ class ThreadSafeList:
             else:
                 return self.list[index + 1]
 
+    def get_previous(self, philosopher):
+        with self.lock:
+            index = self.list.index(philosopher)
+            if index == 0:
+                return self.list[len(self.list) - 1]
+            else:
+                return self.list[index - 1]
+
     def __len__(self):
         with self.lock:
             return len(self.list)
@@ -103,5 +111,9 @@ class Table:
 
     def get_color(self):
         return f"\033[38;2;{random.randint(0, 255)};{random.randint(0, 255)};{random.randint(0, 255)}m"
+
+    def previous_philosopher(self, philosopher):
+        philosopher = self.philosophers.get_previous(philosopher)
+        return philosopher["address"]
 
 

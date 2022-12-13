@@ -66,6 +66,9 @@ class ThreadedUDPRequestHandler(socketserver.BaseRequestHandler):
                     tokens.remove(token)
             else:
                 print(f"Philosopher {self.client_address} is sitting at the table.")
+                # Get address of previous philosopher
+                pa = tb.previous_philosopher(philosopher)
+                nw.send_and_receive(socket, json.dumps({"message": "new-next-user", "next_token_user_address": self.client_address}).encode(), (pa[0], pa[1]), 5, 1, b"NEXT-USER-OK")
         elif payload["message"] == "HUNGRY":
             tkn = payload["token"]
             if tkn is not None and tkn in tokens:
