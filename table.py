@@ -1,12 +1,6 @@
 import threading
-import queue
 import random
 from time import sleep
-import network as nw
-
-
-class bcolors:
-    ENDC = '\033[0m'
 
 
 class ThreadSafeList:
@@ -62,6 +56,24 @@ class ThreadSafeList:
                     return i
             return -1
 
+    def print(self):
+        with self.lock:
+            print(self.list)
+            for i in range(0, len(self.list)):
+                print(self.list[i])
+
+    def exists(self, value):
+        with self.lock:
+            return value in self.list
+
+
+class bcolors:
+    ENDC = '\033[0m'
+
+
+def get_color():
+    return f"\033[38;2;{random.randint(0, 255)};{random.randint(0, 255)};{random.randint(0, 255)}m"
+
 
 class Table:
     def __init__(self):
@@ -69,8 +81,10 @@ class Table:
         self.philosophers = ThreadSafeList()
 
     def add_philosopher(self, philosopher):
-        philosopher["color"] = self.get_color()
+        print(f"Philosopher {philosopher['identifier']} has sat down.")
+        philosopher["color"] = get_color()
         self.philosophers.append(philosopher)
+        print(f"Philosopher {philosopher['identifier']} has been added to the table.")
         if self.philosophers.__len__() >= 2:
             self.forks.append(threading.Semaphore())
 
@@ -82,8 +96,8 @@ class Table:
     def get_philosopher(self, philosopher):
         return self.philosophers.get(philosopher)
 
-    def gormandize(self, identifier):
-        sleep(random.randint(1, 20))
+    def gormandize(self):
+        sleep(random.randint(3, 10))
 
     def hungry(self, identifier):
         index = self.philosophers.index_identifier(identifier)
@@ -92,28 +106,22 @@ class Table:
         print(f"Philosopher {color}{identifier}{bcolors.ENDC} is hungry.")
 
         self.forks[index].acquire()  # Acquire the fork to the left
-        print(f"Philosopher {color}{identifier}{bcolors.ENDC} has acquired left fork. [{index}]")
-
+        print(f"Philosopher {color}{identifier}{bcolors.ENDC} has acquired the fork to the left.")
         self.forks[(index + 1) % len(self.forks)].acquire()  # Acquire the fork to the right
-        print(f"Philosopher {color}{identifier}{bcolors.ENDC} has acquired right fork. [{(index + 1) % len(self.forks)}]")
+        print(f"Philosopher {color}{identifier}{bcolors.ENDC} has acquired the fork to the right.")
 
         print(f"Philosopher {color}{identifier}{bcolors.ENDC} is gormandizing.")
-        self.gormandize(identifier)
-        print(f"Philosopher {color}{identifier}{bcolors.ENDC} is done gormandizing.")
+        self.gormandize()
+        print(f"Philosopher {color}{identifier}{bcolors.ENDC} has finished gormandizing.")
 
-        print(f"Philosopher {color}{identifier}{bcolors.ENDC} released both forks and is now thinking.")
         self.forks[index].release()  # Release the fork to the left
         self.forks[(index + 1) % len(self.forks)].release()  # Release the fork to the right
+        print(f"Philosopher {color}{identifier}{bcolors.ENDC} has released his forks.")
 
     def next_philosopher(self, philosopher):
         philosopher = self.philosophers.get_next(philosopher)
         return philosopher["address"]
 
-    def get_color(self):
-        return f"\033[38;2;{random.randint(0, 255)};{random.randint(0, 255)};{random.randint(0, 255)}m"
-
     def previous_philosopher(self, philosopher):
         philosopher = self.philosophers.get_previous(philosopher)
         return philosopher["address"]
-
-

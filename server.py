@@ -1,114 +1,80 @@
 import random
-import socketserver
 import string
-import threading
+import typing
 from time import sleep
+
+from zero import ZeroServer
 import table
-import json
-import network as nw
 
-ip = ("192.168.1.167", 3000)
-
+tb = table.Table()
+tokens = []
 
 def generate_token():
     if tb.philosophers.__len__() != 1:
         token = generate_id()
+        # If token exists, generate a new one
         while token in tokens:
             token = generate_id()
         return token
-    else:
-        return None
+    return None
 
 
 def generate_id():
     return ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(20))
 
 
-tokens = []
-tb = table.Table()
+def generate_new_philosopher(address):
+    global tokens
+    token = generate_token()
+    identifier = generate_id()
+
+    print(f"Token: {token}")
+    print(f"Identifier: {identifier}")
+
+    new_philosopher = {"identifier": identifier, "address": address}
+    tb.add_philosopher(new_philosopher)
+    next_user = tb.next_philosopher(new_philosopher)
+
+    if token is not None:
+        tokens.append(token)
+        print("TOKEN APPENDED")
+    print(f"Tokens: {tokens}")
+
+    data = {"message": "OK-SEATED",
+            "identifier": identifier,
+            "token": token,
+            "next_token_user_address": next_user}
+
+    return data
 
 
-class ThreadedUDPRequestHandler(socketserver.BaseRequestHandler):
-    def handle(self):
-        payload = self.request[0].strip().decode()
-        socket = self.request[1]
-
-        try:
-            payload = json.loads(payload)
-        except json.decoder.JSONDecodeError:
-            return
-
-        if payload["message"] == "LET-ME-SIT":
-            token = generate_token()
-            identifier = generate_id()
-
-            philosopher = {
-                "identifier": identifier,
-                "address": self.client_address,
-            }
-            tb.add_philosopher(philosopher)
-
-            if token is not None:
-                tokens.append(token)
-
-            response = {
-                "identifier": identifier,
-                "token": token,
-                "next_token_user_address": tb.next_philosopher(philosopher),
-                "message": "OK-SIT"
-            }
-
-            print(f"Philosopher {self.client_address} requested a seat.")
-            if not nw.send_and_receive(socket, json.dumps(response).encode(), self.client_address, 5, 1, b"SIT-OK"):
-                print(f"Philosopher {self.client_address} did not accept the seat.")
-                tb.remove_philosopher(philosopher)
-                if token is not None:
-                    tokens.remove(token)
-            else:
-                print(f"Philosopher {self.client_address} is sitting at the table.")
-                # Get address of previous philosopher
-                pa = tb.previous_philosopher(philosopher)
-                nw.send_and_receive(socket, json.dumps({"message": "new-next-user", "next_token_user_address": self.client_address}).encode(), (pa[0], pa[1]), 5, 1, b"NEXT-USER-OK")
-        elif payload["message"] == "HUNGRY":
-            tkn = payload["token"]
-            if tkn is not None and tkn in tokens:
-                sleep(0.1)
-                socket.sendto(b"OK", self.client_address)
-                tb.hungry(payload["identifier"])
-                socket.sendto(b"GORMANDIZED", self.client_address)
+def take_seat(msg: typing.Dict) -> typing.Dict:
+    payload = generate_new_philosopher(msg["address"])
+    # append token
+    if payload["token"] is not None:
+        tokens.append(payload["token"])
+    return payload
 
 
-class ThreadedUDPServer(socketserver.ThreadingMixIn, socketserver.UDPServer):
-    pass
+def validate_token(tkn):
+    global tokens
+    print(f"1Token: {tkn}")
+    print(f"1Tokens: {tokens}")
+    if tkn in tokens:
+        return True
+    else:
+        return False
 
 
-def UDPServer():
-    server = ThreadedUDPServer(ip, ThreadedUDPRequestHandler)
-
-    try:
-        print(f"Server started on {ip}")
-        with server:
-            # Threaded UDP Server to accept orders
-            server_thread = threading.Thread(target=server.serve_forever)
-            server_thread.daemon = True
-            server_thread.start()
-
-            print(f"Server loop running in thread: {server_thread.name}")
-
-            # Coffee machine go brrrr
-            while True:
-                pass
-
-    except KeyboardInterrupt:
-        print("Server shutting down")
-        # server_thread.join()
-        server.shutdown()
-        server.server_close()
+def hunger(msg: typing.Dict) -> typing.Dict:
+    if validate_token(msg["token"]):
+        tb.hungry(msg["identifier"])
+    else:
+        return {"message": "INVALID-TOKEN"}
 
 
-def main():
-    UDPServer()
-
-
-if __name__ == '__main__':
-    main()
+if __name__ == "__main__":
+    app = ZeroServer(port=3000, host="192.168.1.167")
+    app.register_rpc(take_seat)
+    app.register_rpc(hunger)
+    app.run()
