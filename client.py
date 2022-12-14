@@ -45,7 +45,8 @@ def napper():
 
 
 def send_chance():
-    return random.random() <= SEND_RATE
+    re = random.random() < SEND_RATE
+    return re
 
 
 # data = [message, ip, port, token, identifier, next_token_ip, next_token_port]

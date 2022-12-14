@@ -29,33 +29,34 @@ class Table:
         index = self.philosophers.get_index_by_search("identifier", philosopher["identifier"])
         if self.philosophers.__len__() >= 2:
             self.philosophers.remove_by_index(index)
-            self.forks.pop(index+1)
+            self.forks.pop((index+1) % len(self.forks))
 
 
     def gormandize(self):
         sleep(random.randint(3, 10))
 
     def hungry(self, identifier):
-        philosopher = self.philosophers.get_item_by_search("identifier", identifier)
+        philosopher = self.philosophers.get_item_by_search("identifi"
+                                                           "er", identifier)
         color = philosopher["color"]
 
         print(f"Philosopher {color}{philosopher['ip']}:{philosopher['port']}{bcolors.ENDC} is hungry.")
-
+        print(self.forks.__len__())
         index = self.philosophers.get_index_by_search("identifier", identifier)
         self.forks[index].acquire()  # Acquire the fork to the left
         print(f"Philosopher {color}{philosopher['ip']}:{philosopher['port']}{bcolors.ENDC} has acquired the left fork.")
 
-        index = self.philosophers.get_index_by_search("identifier", identifier)
-        self.forks[(index + 1) % len(self.forks)].acquire()  # Acquire the fork to the right
+        indexY = ((self.philosophers.get_index_by_search("identifier", identifier) + 1) % len(self.forks))
+        print(f"index: {index} indexY: {indexY}")
+        self.forks[indexY].acquire()  # Acquire the fork to the right
         print(f"Philosopher {color}{philosopher['ip']}:{philosopher['port']}{bcolors.ENDC} has acquired the right fork.")
 
         print(f"Philosopher {color}{philosopher['ip']}:{philosopher['port']}{bcolors.ENDC} is gormandizing.")
         self.gormandize()
         print(f"Philosopher {color}{philosopher['ip']}:{philosopher['port']}{bcolors.ENDC} has finished gormandizing.")
 
-        index = self.philosophers.get_index_by_search("identifier", identifier)
-        self.forks[index].release()  # Release the fork to the left
-        self.forks[(index + 1) % len(self.forks)].release()  # Release the fork to the right
+        self.forks[self.philosophers.get_index_by_search("identifier", identifier)].release()  # Release the fork to the left
+        self.forks[(self.philosophers.get_index_by_search("identifier", identifier) + 1) % len(self.forks)].release()  # Release the fork to the right
         print(f"Philosopher {color}{philosopher['ip']}:{philosopher['port']}{bcolors.ENDC} has released his forks.")
         print(f"Philosopher {color}{philosopher['ip']}:{philosopher['port']}{bcolors.ENDC} is thinking.")
 

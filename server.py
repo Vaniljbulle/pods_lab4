@@ -36,10 +36,13 @@ def generate_id():
 def update_ring(philosopher):
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
         s.settimeout(2)
-        previous_philosopher = tbl.previous_philosopher(philosopher)
+        try:
+            previous_philosopher = tbl.previous_philosopher(philosopher)
+        except TypeError as e:
+            return
         ip = {"message": "new-next-user", "ip": philosopher["ip"], "port": philosopher["port"]}
-        while True:
-            print(f"IP: {philosopher['ip']}:{philosopher['port']}")
+        for i in range(3):
+            # print(f"IP: {philosopher['ip']}:{philosopher['port']}")
             s.sendto(json.dumps(ip).encode(), (previous_philosopher["ip"], int(previous_philosopher["port"])))
             try:
                 data = s.recv(1024)
@@ -47,6 +50,12 @@ def update_ring(philosopher):
                     return
             except socket.timeout:
                 pass
+            except Exception as e:
+                p = tbl.philosophers.get_next(philosopher)
+                tbl.philosophers.remove_item(philosopher)
+                break
+    update_ring(p)
+
 
 
 def generate_new_philosopher(ip, port):
@@ -77,16 +86,19 @@ def generate_new_philosopher(ip, port):
 def total_token_recall():
     tokens.clear_all()
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-        s.settimeout(2)
-        #print(tbl.philosophers.__len__() - 1)
-        for i in range(0, tbl.philosophers.__len__() - 1):
+        s.settimeout(1)
+
+        cc = tbl.philosophers.__len__() - 1
+        if cc == 0:
+            cc = 1
+        for i in range(0, cc):
             tkn = generate_token()
-            cunt = {"message": "new-token", "token": tkn}
+            msg = {"message": "new-token", "token": tkn}
             tokens.append(tkn)
             phil = tbl.philosophers.get_item_by_index(i)
-            while True:
-                #print(f"SENT NEW TOKEN TO {(phil['ip'])}:{phil['port']}")
-                s.sendto(json.dumps(cunt).encode(), (phil["ip"], int(phil["port"])))
+            for _ in range(3):
+                # print(f"SENT NEW TOKEN TO {(phil['ip'])}:{phil['port']}")
+                s.sendto(json.dumps(msg).encode(), (phil["ip"], int(phil["port"])))
                 try:
                     data = s.recv(1024)
                     if data == b"token-accepted":
@@ -94,7 +106,11 @@ def total_token_recall():
                         break
                 except socket.timeout:
                     pass
-
+                except Exception as e:
+                    p = tbl.philosophers.get_next(phil)
+                    tbl.philosophers.remove_item(phil)
+                    threading.Thread(update_ring(p)).start()
+                    break
 
 
 class TableHandler:
