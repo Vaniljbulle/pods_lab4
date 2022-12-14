@@ -27,6 +27,7 @@ if len(sys.argv) <= 1 or sys.argv[1] == '--help':
     print('   take_seat( l)')
     print('   leave_seat( l)')
     print('   hunger( l)')
+    print('   return_token( l)')
     print('')
     sys.exit(0)
 
@@ -123,6 +124,12 @@ elif cmd == 'hunger':
         print('hunger requires 1 args')
         sys.exit(1)
     pp.pprint(client.hunger(eval(args[0]),))
+
+elif cmd == 'return_token':
+    if len(args) != 1:
+        print('return_token requires 1 args')
+        sys.exit(1)
+    pp.pprint(client.return_token(eval(args[0]),))
 
 else:
     print('Unrecognized method %s' % cmd)

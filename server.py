@@ -34,13 +34,11 @@ def generate_id():
 
 
 def update_ring(philosopher):
-    print("Updating ring...")
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
         s.settimeout(2)
         previous_philosopher = tbl.previous_philosopher(philosopher)
-        ip = {"message": "new-next-user","ip": philosopher["ip"], "port": philosopher["port"]}
+        ip = {"message": "new-next-user", "ip": philosopher["ip"], "port": philosopher["port"]}
         while True:
-            print("Updating ring 2...")
             print(f"IP: {philosopher['ip']}:{philosopher['port']}")
             s.sendto(json.dumps(ip).encode(), (previous_philosopher["ip"], int(previous_philosopher["port"])))
             try:
@@ -76,6 +74,29 @@ def generate_new_philosopher(ip, port):
     return response
 
 
+def total_token_recall():
+    tokens.clear_all()
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+        s.settimeout(2)
+        #print(tbl.philosophers.__len__() - 1)
+        for i in range(0, tbl.philosophers.__len__() - 1):
+            tkn = generate_token()
+            cunt = {"message": "new-token", "token": tkn}
+            tokens.append(tkn)
+            phil = tbl.philosophers.get_item_by_index(i)
+            while True:
+                #print(f"SENT NEW TOKEN TO {(phil['ip'])}:{phil['port']}")
+                s.sendto(json.dumps(cunt).encode(), (phil["ip"], int(phil["port"])))
+                try:
+                    data = s.recv(1024)
+                    if data == b"token-accepted":
+                        print("CONFIRMED")
+                        break
+                except socket.timeout:
+                    pass
+
+
+
 class TableHandler:
     def __init__(self):
         self.log = {}
@@ -84,17 +105,48 @@ class TableHandler:
         # print(f"Data: {data}")
         # data = [message, ip, port, token, identifier, next_token_ip, next_token_port]
         answer = ["ERROR", "None", "None", "None", "None", "None", "None"]
-        if len(data) == 7:
-            answer = generate_new_philosopher(data[1], data[2])
+        if len(data) == 7 and data[0] == "LET-ME-SIT":
+            if tbl.philosophers.exists_by_search("port", data[2]):
+                answer = ["ERROR-ALREADY-SEATED", "None", "None", "None", "None", "None", "None"]
+            else:
+                answer = generate_new_philosopher(data[1], data[2])
         return answer
 
     def hunger(self, data):
         # print(f"Data: {data}")
         # data = [message, ip, port, token, identifier, next_token_ip, next_token_port]
         answer = ["ERROR", "None", "None", "None", "None", "None", "None"]
-        if len(data) == 7:
-            if tokens.exists(data[3]):
-                answer = tbl.hungry(data[4])
+        if len(data) == 7 and data[0] == "I-AM-HUNGRY":
+            if tbl.philosophers.exists_by_search("identifier", data[4]):
+                if tokens.exists(data[3]):
+                    answer = tbl.hungry(data[4])
+                else:
+                    answer = ["ERROR-TOKEN-REVOKED", "None", "None", "None", "None", "None", "None"]
+            else:
+                answer = ["ERROR-UNSEATED", "None", "None", "None", "None", "None", "None"]
+        return answer
+
+    def return_token(self, data):
+        # print(f"Data: {data}")
+        # data = [message, ip, port, token, identifier, next_token_ip, next_token_port]
+        answer = ["OK-THANKS", "None", "None", "None", "None", "None", "None"]
+        if len(data) == 7 and data[0] == "RETURN-TOKEN":
+            if tbl.philosophers.exists_by_search("identifier", data[4]):
+                if tokens.exists(data[3]):
+                    tokens.remove_item(data[3])
+                    next_philosopher = tbl.next_philosopher(tbl.philosophers.get_item_by_search("identifier", data[4]))
+                    tbl.remove_philosopher(next_philosopher)
+                    next_philosopher = tbl.next_philosopher(tbl.philosophers.get_item_by_search("identifier", data[4]))
+                    answer = ["OK-NEW-NEXT", "None", "None", "None", "None", next_philosopher['ip'],
+                              str(next_philosopher['port'])]
+
+                    threading.Thread(target=total_token_recall).start()
+
+
+                else:
+                    answer = ["ERROR-TOKEN-REVOKED", "None", "None", "None", "None", "None", "None"]
+            else:
+                answer = ["ERROR-UNSEATED", "None", "None", "None", "None", "None", "None"]
         return answer
 
 
@@ -104,7 +156,7 @@ def main():
     buffer = TTransport.TBufferedTransportFactory()
     protocol = TBinaryProtocol.TBinaryProtocolFactory()
 
-    #server_table = TServer.TSimpleServer(processor, socket, buffer, protocol)
+    # server_table = TServer.TSimpleServer(processor, socket, buffer, protocol)
     server_table = TServer.TThreadPoolServer(processor, socket, buffer, protocol)
 
     print('Server running...')

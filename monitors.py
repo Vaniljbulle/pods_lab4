@@ -10,6 +10,9 @@ class ThreadSafeList:
         with self.lock:
             return len(self.list)
 
+    def __iter__(self):
+        return iter(self.list)
+
     def append(self, item):
         with self.lock:
             self.list.append(item)
@@ -67,6 +70,23 @@ class ThreadSafeList:
                 if self.list[i] == item:
                     return True
             return False
+
+    def exists_by_search(self, key, value):
+        with self.lock:
+            for item in self.list:
+                if item[key] == value:
+                    return True
+            return False
+
+    def clear_all(self):
+        with self.lock:
+            self.list.clear()
+
+    def LOCK(self):
+        self.lock.acquire()
+
+    def UNLOCK(self):
+        self.lock.release()
 
 
 class ThreadSafeVariable:

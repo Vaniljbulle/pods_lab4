@@ -26,9 +26,11 @@ class Table:
             self.forks.append(threading.Semaphore())
 
     def remove_philosopher(self, philosopher):
-        self.philosophers.pop(philosopher)
+        index = self.philosophers.get_index_by_search("identifier", philosopher["identifier"])
         if self.philosophers.__len__() >= 2:
-            self.forks.pop()
+            self.philosophers.remove_by_index(index)
+            self.forks.pop(index+1)
+
 
     def gormandize(self):
         sleep(random.randint(3, 10))
